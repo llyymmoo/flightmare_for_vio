@@ -7,6 +7,7 @@
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/Image.h>
+#include <sensor_msgs/PointCloud.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <std_msgs/Empty.h>
@@ -38,14 +39,28 @@ class FlightPilot {
   // pulishers
   void setPublish();
 
+  // subscribers
+  void setSubscribe();
+
   // callbacks
   void mainLoopCallback(const ros::TimerEvent& event);
   void ImageCallback(const nav_msgs::Odometry::ConstPtr& msg);
   void IMUCallback(const sensor_msgs::Imu::ConstPtr& msg);
+  void EstPoseCallback(const nav_msgs::Odometry::ConstPtr& msg);
+  void EstFailedCallback(const std_msgs::Empty::ConstPtr& msg);
+  void EstInitializeSucceedCallback(const sensor_msgs::PointCloud::ConstPtr& msg);
 
   bool setUnity(const bool render);
   bool connectUnity(void);
   bool loadParams(void);
+
+  bool initialized_;
+  bool started_;
+
+  Eigen::Matrix3d R_w_est_;
+  Eigen::Vector3d t_w_est_;
+  double scale_;
+  std::map<float, nav_msgs::Odometry> t2pose_;
 
  private:
   // ros nodes
@@ -63,9 +78,14 @@ class FlightPilot {
   ros::Publisher img_obs_pub_;
   ros::Publisher imu_obs_pub_;
 
+  ros::Publisher est_pose_pub_;
+
   // subscriber
   ros::Subscriber sub_state_gt_;
   ros::Subscriber sub_imu_gt_;
+  ros::Subscriber sub_pose_est_;
+  ros::Subscriber sub_fail_est_;
+  ros::Subscriber sub_initialize_success_est_;
 
   // main loop timer
   ros::Timer timer_main_loop_;
