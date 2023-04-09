@@ -25,8 +25,8 @@ FlightPilot::FlightPilot(const ros::NodeHandle &nh, const ros::NodeHandle &pnh)
 
   // add mono camera
   rgb_camera_ = std::make_shared<RGBCamera>();
-  Vector<3> B_r_BC(0.0, 0.0, 0.3);
-  Matrix<3, 3> R_BC = Quaternion(1.0, 0.0, 0.0, 0.0).toRotationMatrix();
+  Vector<3> B_r_BC(0.0, 0.35, 0.3);
+  Matrix<3, 3> R_BC = Quaternion(1.0, 0.0, 0.0, 0.0).toRotationMatrix(); //TODO: is T_BC calculated correctly ?
   std::cout << R_BC << std::endl;
   rgb_camera_->setFOV(90);
   rgb_camera_->setWidth(640);
@@ -59,11 +59,11 @@ FlightPilot::FlightPilot(const ros::NodeHandle &nh, const ros::NodeHandle &pnh)
 
 FlightPilot::~FlightPilot() {}
 
-void FlightPilot::ImageCallback(const nav_msgs::Odometry::ConstPtr &msg) {
+void FlightPilot::Image_GtPoseCallback(const nav_msgs::Odometry::ConstPtr &msg) {
   // gt
   if (!initialized_) {
     est_pose_pub_.publish(msg);
-    // t2pose_.emplace(static_cast<float>(msg->header.stamp.toSec()), *msg);
+    t2pose_.emplace(static_cast<float>(msg->header.stamp.toSec()), *msg);
     ROS_INFO("pub pose to autopilot, timestamp: %lf", msg->header.stamp.toSec());
   }
 
@@ -101,9 +101,20 @@ void FlightPilot::IMUCallback(const sensor_msgs::Imu::ConstPtr& msg)
   const sensor_msgs::Imu::ConstPtr& imu_gt = msg;
 
   // noise parameters
+  double acc_n = 0.01;  //TODO: use yaml to load parameters
+  double gyr_n = 0.001;
+  double acc_bias = 0.0;
+  double gyr_bias = 0.0;
 
   // add noise
   sensor_msgs::Imu imu_obs;
+  imu_obs.header = imu_gt->header;
+  imu_obs.linear_acceleration.x = imu_gt->linear_acceleration.x + acc_n * rand1();
+  imu_obs.linear_acceleration.y = imu_gt->linear_acceleration.y + acc_n * rand1();
+  imu_obs.linear_acceleration.z = imu_gt->linear_acceleration.z + acc_n * rand1();
+  imu_obs.angular_velocity.x = imu_gt->angular_velocity.x + gyr_n * rand1();
+  imu_obs.angular_velocity.y = imu_gt->angular_velocity.y + gyr_n * rand1();
+  imu_obs.angular_velocity.z = imu_gt->angular_velocity.z + gyr_n * rand1();
 
   // publish
   imu_obs_pub_.publish(imu_obs);
@@ -223,7 +234,7 @@ void FlightPilot::setSubscribe()
 {
   // subscriber for img & imu, forward the img & imu to vins estimator
   sub_state_gt_ = nh_.subscribe("ground_truth/odometry", 1,
-                                 &FlightPilot::ImageCallback, this);
+                                 &FlightPilot::Image_GtPoseCallback, this);
   sub_imu_gt_ = nh_.subscribe("ground_truth/imu", 1,
                                  &FlightPilot::IMUCallback, this);
 
@@ -239,18 +250,14 @@ void FlightPilot::setSubscribe()
 
 void FlightPilot::mainLoopCallback(const ros::TimerEvent &event) {
   // pub start cmd
-  if (!started_) {
-    // std_msgs::Empty msg;
-    // start_cmd_pub_.publish(msg);
-    // ROS_INFO("pub start signal to autopilot");
-    // started_ = true;
+  if (!started_) { //TODO: autopilot state callback ?
 
     return;
   }
 
   // 1. if not initialized, move around to initialize
   if (!initialized_) {
-
+    //TODO: way point generation
   }
   // 2. if initialized, pub desired way points
   else if (initialized_) {

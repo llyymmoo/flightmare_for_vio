@@ -44,7 +44,7 @@ class FlightPilot {
 
   // callbacks
   void mainLoopCallback(const ros::TimerEvent& event);
-  void ImageCallback(const nav_msgs::Odometry::ConstPtr& msg);
+  void Image_GtPoseCallback(const nav_msgs::Odometry::ConstPtr& msg);
   void IMUCallback(const sensor_msgs::Imu::ConstPtr& msg);
   void EstPoseCallback(const nav_msgs::Odometry::ConstPtr& msg);
   void EstFailedCallback(const std_msgs::Empty::ConstPtr& msg);
@@ -53,6 +53,8 @@ class FlightPilot {
   bool setUnity(const bool render);
   bool connectUnity(void);
   bool loadParams(void);
+
+  inline double rand1() { return (static_cast<double>(std::rand()) / RAND_MAX - 0.5) * 2; }
 
   bool initialized_;
   bool started_;
